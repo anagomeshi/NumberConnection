@@ -105,7 +105,7 @@ function setupNeighbors(width, height) {
 }
 
 // --------------------------------------------------
-// 問題自動生成ロジック（孤立マスの発生を防ぐ）
+// 問題自動生成ロジック（可変マスの矢印未接続バグを防止）
 // --------------------------------------------------
 function generatePuzzle(width, height) {
     const solution = generateLatinSquare(width);
@@ -126,23 +126,18 @@ function generatePuzzle(width, height) {
         for (let x = 0; x < width; x++) {
             const cell = board[y][x];
             
-            // 確率的に固定マス候補にする（例: 30%）
             if (Math.random() < 0.3) {
-                // 仮に固定マスにした場合、隣接するマスが「全方向固定マスで囲まれる」ことにならないか判定
                 let createsIsolatedCell = false;
 
                 for (const neighbor of cell.neighbors) {
-                    // 隣接マス(neighbor)の周囲のうち、すでに固定マスまたは今回固定化予定の数のカウント
                     const fixedAroundNeighbor = neighbor.neighbors.filter(n => n.isFixed || n === cell).length;
                     
-                    // 周囲がすべて固定マスで埋まってしまうなら NG
                     if (fixedAroundNeighbor === neighbor.neighbors.length) {
                         createsIsolatedCell = true;
                         break;
                     }
                 }
 
-                // 孤立マスが生まれない場合のみ固定マスに設定
                 if (!createsIsolatedCell) {
                     cell.isFixed = true;
                 }
@@ -150,18 +145,59 @@ function generatePuzzle(width, height) {
         }
     }
 
-    // 2. 固定（isFixed）でないマス同士の間で矢印の移動計画を構築
+    // 2. 可変マスリストの抽出
+    const variableCells = [];
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            const cell = board[y][x];
-            if (cell.isFixed) continue;
+            if (!board[y][x].isFixed) {
+                variableCells.push(board[y][x]);
+            }
+        }
+    }
 
-            for (const neighbor of cell.neighbors) {
-                if (neighbor.isFixed) continue;
+    // 順序によるバイアスを防ぐためシャッフル
+    shuffle(variableCells);
 
-                // 確率的に矢印の計画を追加（すでに逆向きの計画がない場合）
-                if (!plannedOutgoing[neighbor.y][neighbor.x].has(cell) && Math.random() < 0.4) {
-                    plannedOutgoing[y][x].add(neighbor);
+    // ★ 2-A. [バグ修正] すべての可変マスに「最低1本の接続（出または入）」を保証する
+    for (const cell of variableCells) {
+        // 現在このセルに関与している矢印の数をカウント
+        let activeConnections = plannedOutgoing[cell.y][cell.x].size;
+        for (const neighbor of cell.neighbors) {
+            if (plannedOutgoing[neighbor.y][neighbor.x].has(cell)) {
+                activeConnections++;
+            }
+        }
+
+        // 接続が0本の場合は、隣接する可変マスへ強制的に矢印を1本引く
+        if (activeConnections === 0) {
+            const validNeighbors = cell.neighbors.filter(n => !n.isFixed);
+            if (validNeighbors.length > 0) {
+                const target = validNeighbors[randomInt(0, validNeighbors.length - 1)];
+                
+                // ランダムに向き（出 または 入）を決定
+                if (Math.random() < 0.5) {
+                    plannedOutgoing[cell.y][cell.x].add(target);
+                } else {
+                    plannedOutgoing[target.y][target.x].add(cell);
+                }
+            }
+        }
+    }
+
+    // ★ 2-B. 確率的に追加の矢印をランダム構築（バリエーション追加）
+    for (const cell of variableCells) {
+        for (const neighbor of cell.neighbors) {
+            if (neighbor.isFixed) continue;
+
+            // すでに接続（出または入）が存在しないペアに対して確率で矢印を追加
+            const hasOutgoing = plannedOutgoing[cell.y][cell.x].has(neighbor);
+            const hasIncoming = plannedOutgoing[neighbor.y][neighbor.x].has(cell);
+
+            if (!hasOutgoing && !hasIncoming && Math.random() < 0.25) {
+                if (Math.random() < 0.5) {
+                    plannedOutgoing[cell.y][cell.x].add(neighbor);
+                } else {
+                    plannedOutgoing[neighbor.y][neighbor.x].add(cell);
                 }
             }
         }
@@ -190,6 +226,7 @@ function generatePuzzle(width, height) {
         }
     }
 }
+
 
 function generateLatinSquare(n) {
     let grid = [];
