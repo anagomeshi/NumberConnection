@@ -14,10 +14,14 @@ class Cell {
         this.incoming = new Set(); // 自分に入っている矢印 (先)
         this.baseValue = 1;        // 初期表示される数字
         this.targetValue = 0;      // ラテン方格上の正解値
-        this.isFixed = false;      // 数値のやり取りが発生しない固定マス（四角）フラグ
+        this.isFixed = false;      // 固定マス（四角）フラグ
     }
 
+    // 現在の表示数値
     get value() {
+        if (this.isFixed) {
+            return this.baseValue;
+        }
         // 現在の値 ＝ 初期値 － (出ていく矢印の数) ＋ (入ってくる矢印の数)
         return this.baseValue - this.outgoing.size + this.incoming.size;
     }
@@ -80,6 +84,7 @@ function createBoard(width, height) {
     // パズル生成（正解から逆算して固定マスと初期配置の数字を設定）
     generatePuzzle(width, height);
     
+    // 初回の全マス数値表示更新
     updateAllCellDisplay();
 }
 
@@ -105,7 +110,7 @@ function setupNeighbors(width, height) {
 }
 
 // --------------------------------------------------
-// 問題自動生成ロジック（可変マスの矢印未接続バグを防止）
+// 問題自動生成ロジック
 // --------------------------------------------------
 function generatePuzzle(width, height) {
     const solution = generateLatinSquare(width);
@@ -117,11 +122,11 @@ function generatePuzzle(width, height) {
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             board[y][x].targetValue = solution[y][x];
-            board[y][x].isFixed = false; // 初期化
+            board[y][x].isFixed = false;
         }
     }
 
-    // 1. 固定マス（四角）候補を決定（孤立マスを作らないように判定）
+    // 1. 固定マス（四角）候補を決定（孤立マスを作らない判定）
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const cell = board[y][x];
@@ -155,12 +160,10 @@ function generatePuzzle(width, height) {
         }
     }
 
-    // 順序によるバイアスを防ぐためシャッフル
     shuffle(variableCells);
 
-    // ★ 2-A. [バグ修正] すべての可変マスに「最低1本の接続（出または入）」を保証する
+    // 2-A. すべての可変マスに最低1本の接続（出または入）を保証
     for (const cell of variableCells) {
-        // 現在このセルに関与している矢印の数をカウント
         let activeConnections = plannedOutgoing[cell.y][cell.x].size;
         for (const neighbor of cell.neighbors) {
             if (plannedOutgoing[neighbor.y][neighbor.x].has(cell)) {
@@ -168,13 +171,11 @@ function generatePuzzle(width, height) {
             }
         }
 
-        // 接続が0本の場合は、隣接する可変マスへ強制的に矢印を1本引く
         if (activeConnections === 0) {
             const validNeighbors = cell.neighbors.filter(n => !n.isFixed);
             if (validNeighbors.length > 0) {
                 const target = validNeighbors[randomInt(0, validNeighbors.length - 1)];
                 
-                // ランダムに向き（出 または 入）を決定
                 if (Math.random() < 0.5) {
                     plannedOutgoing[cell.y][cell.x].add(target);
                 } else {
@@ -184,12 +185,11 @@ function generatePuzzle(width, height) {
         }
     }
 
-    // ★ 2-B. 確率的に追加の矢印をランダム構築（バリエーション追加）
+    // 2-B. 確率的に追加の矢印をランダム構築
     for (const cell of variableCells) {
         for (const neighbor of cell.neighbors) {
             if (neighbor.isFixed) continue;
 
-            // すでに接続（出または入）が存在しないペアに対して確率で矢印を追加
             const hasOutgoing = plannedOutgoing[cell.y][cell.x].has(neighbor);
             const hasIncoming = plannedOutgoing[neighbor.y][neighbor.x].has(cell);
 
@@ -227,7 +227,6 @@ function generatePuzzle(width, height) {
     }
 }
 
-
 function generateLatinSquare(n) {
     let grid = [];
     for (let y = 0; y < n; y++) {
@@ -250,7 +249,6 @@ function generateLatinSquare(n) {
 // プレイヤー操作・表示更新
 // --------------------------------------------------
 function onCellClicked(cell) {
-    // 四角（固定マス）は選択不可
     if (selectedCell === null) {
         if (cell.isFixed) return;
         selectCell(cell);
@@ -271,7 +269,6 @@ function selectCell(cell) {
     selectedCell = cell;
     getButton(cell).classList.add("selected");
 
-    // 固定マス以外の隣接セルをハイライト
     for (const neighbor of cell.neighbors) {
         if (!neighbor.isFixed) {
             getButton(neighbor).classList.add("neighbor");
@@ -290,7 +287,6 @@ function deselectCell() {
 }
 
 function tryToggleArrow(from, to) {
-    // 基または先が固定マスの場合は処理を行わない
     if (from.isFixed || to.isFixed) return;
     if (!from.neighbors.includes(to)) return;
 
@@ -358,9 +354,9 @@ function updateAllCellDisplay() {
             const cell = board[y][x];
             const button = getButton(cell);
             
+            // ボタンへのテキスト設定
             button.textContent = cell.value;
 
-            // fixed フラグが true のマスにのみ fixed クラスを付与
             if (cell.isFixed) {
                 button.classList.add("fixed");
             } else {
@@ -435,6 +431,14 @@ function getButtonCenter(button) {
 
 function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }
 
 function redrawLines() {
