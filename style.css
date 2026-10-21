@@ -114,7 +114,7 @@ html,body {
 }
 
 .board-button.fixed{
-    border-radius: none !important;
+    border-radius: 0 !important;
 }
 
 .connection-layer{
