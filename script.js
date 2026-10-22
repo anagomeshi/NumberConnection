@@ -129,7 +129,8 @@ function generatePuzzle(width, height) {
         for (let x = 0; x < width; x++) {
             const cell = board[y][x];
             
-            if (Math.random() < 0.3) {
+            // 一定確率でマスが固定マスになる
+            if (Math.random() < 0.4) {
                 let createsIsolatedCell = false;
 
                 for (const neighbor of cell.neighbors) {
