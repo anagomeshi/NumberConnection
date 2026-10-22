@@ -1,5 +1,5 @@
-const boardWidth = 5;
-const boardHeight = 5;
+const boardWidth = 9;
+const boardHeight = 9;
 
 let board = [];
 let selectedCell = null;
@@ -42,15 +42,15 @@ function createBoard(width, height) {
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
     marker.setAttribute("id", "arrowhead");
-    marker.setAttribute("markerWidth", "10");
-    marker.setAttribute("markerHeight", "7");
-    marker.setAttribute("refX", "9");
-    marker.setAttribute("refY", "3.5");
+    marker.setAttribute("markerWidth", "4");
+    marker.setAttribute("markerHeight", "4");
+    marker.setAttribute("refX", "1");
+    marker.setAttribute("refY", "2");
     marker.setAttribute("orient", "auto");
     
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    polygon.setAttribute("points", "0 0, 10 3.5, 0 7");
-    polygon.setAttribute("fill", "#007bff");
+    polygon.setAttribute("points", "0 0, 4 2, 0 4");
+    polygon.setAttribute("fill", "#5982d9");
     marker.appendChild(polygon);
     defs.appendChild(marker);
     svg.appendChild(defs);
@@ -109,9 +109,7 @@ function setupNeighbors(width, height) {
     }
 }
 
-// --------------------------------------------------
-// 問題自動生成ロジック
-// --------------------------------------------------
+// 問題自動生成
 function generatePuzzle(width, height) {
     const solution = generateLatinSquare(width);
     
@@ -126,7 +124,7 @@ function generatePuzzle(width, height) {
         }
     }
 
-    // 1. 固定マス（四角）候補を決定（孤立マスを作らない判定）
+    // 固定マス（四角）候補を決定（孤立マスを作らない判定）
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const cell = board[y][x];
@@ -150,7 +148,7 @@ function generatePuzzle(width, height) {
         }
     }
 
-    // 2. 可変マスリストの抽出
+    // 可変マスリストの抽出
     const variableCells = [];
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -162,7 +160,7 @@ function generatePuzzle(width, height) {
 
     shuffle(variableCells);
 
-    // 2-A. すべての可変マスに最低1本の接続（出または入）を保証
+    // すべての可変マスに最低1本の接続（出または入）を保証
     for (const cell of variableCells) {
         let activeConnections = plannedOutgoing[cell.y][cell.x].size;
         for (const neighbor of cell.neighbors) {
@@ -185,7 +183,7 @@ function generatePuzzle(width, height) {
         }
     }
 
-    // 2-B. 確率的に追加の矢印をランダム構築
+    // 確率的に追加の矢印をランダム構築
     for (const cell of variableCells) {
         for (const neighbor of cell.neighbors) {
             if (neighbor.isFixed) continue;
@@ -203,7 +201,7 @@ function generatePuzzle(width, height) {
         }
     }
 
-    // 3. 各マスの初期値（baseValue）を決定
+    // 各マスの初期値（baseValue）を決定
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const cell = board[y][x];
@@ -225,6 +223,35 @@ function generatePuzzle(width, height) {
             }
         }
     }
+
+    // コンソールに正解の接続マップおよび目標のラテン方格を表示
+    console.group("=== 正解データ（デバッグ情報） ===");
+    
+    // 正解のラテン方格をテーブル表示
+    console.log("【完成形ラテン方格】");
+    console.table(solution);
+
+    // 正解の矢印接続リストを表示
+    console.log("【正解の矢印リスト (基 -> 先)】");
+    const solutionArrows = [];
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            for (const target of plannedOutgoing[y][x]) {
+                solutionArrows.push({
+                    "基 (From)": `(${x}, ${y}) [初期値: ${board[y][x].baseValue} -> 目標: ${board[y][x].targetValue}]`,
+                    "先 (To)": `(${target.x}, ${target.y}) [初期値: ${target.baseValue} -> 目標: ${target.targetValue}]`
+                });
+            }
+        }
+    }
+    
+    if (solutionArrows.length > 0) {
+        console.table(solutionArrows);
+    } else {
+        console.log("接続されている矢印はありません。");
+    }
+
+    console.groupEnd();
 }
 
 function generateLatinSquare(n) {
@@ -319,16 +346,39 @@ function getArrowKey(from, to) {
     return `${from.x},${from.y}->${to.x},${to.y}`;
 }
 
+// 2点間の中心座標から「縁」の座標を計算する関数
+function getEdgePoint(fromPos, toPos, cellRadius) {
+    const dx = toPos.x - fromPos.x;
+    const dy = toPos.y - fromPos.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance === 0) return toPos;
+
+    // マスの半径分だけ手前（縁）の位置を計算
+    return {
+        x: toPos.x - (dx / distance) * cellRadius,
+        y: toPos.y - (dy / distance) * cellRadius
+    };
+}
+
 function drawArrowLine(from, to) {
     const svg = boardElement.querySelector(".connection-layer");
     const posA = getButtonCenter(getButton(from));
     const posB = getButtonCenter(getButton(to));
 
+    // ボタンの実際の半径（5rem = 約80px の場合は約 40px）を取得
+    const buttonElement = getButton(from);
+    const radius = buttonElement.offsetWidth / 2 + 24; // 24に設定するとなぜか三角形は縁にぴったりになる
+
+    // 終点を中心から「マスの縁」の位置へと補正
+    const startEdge = getEdgePoint(posB, posA, 0); // Aの中心から出発
+    const endEdge = getEdgePoint(posA, posB, radius);   // Bの縁で停止
+
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", posA.x);
-    line.setAttribute("y1", posA.y);
-    line.setAttribute("x2", posB.x);
-    line.setAttribute("y2", posB.y);
+    line.setAttribute("x1", startEdge.x);
+    line.setAttribute("y1", startEdge.y);
+    line.setAttribute("x2", endEdge.x);
+    line.setAttribute("y2", endEdge.y);
     line.setAttribute("marker-end", "url(#arrowhead)");
     line.classList.add("connection-line");
 
