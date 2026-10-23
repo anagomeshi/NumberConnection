@@ -85,18 +85,18 @@ html,body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 5rem;
-    min-width: 5rem;
-    height: 5rem;
-    min-height: 5rem;
+    width: 4rem;
+    min-width: 4rem;
+    height: 4rem;
+    min-height: 4rem;
     padding: 0;
-    margin: 2.5rem;
+    margin: 2rem;
     background-color: #fff;
     border: 2px solid #344861;
-    border-radius: 2.5rem;
+    border-radius: 2rem;
     color: #344861;
-    font-size: 2.5rem;
-    line-height: 2.5rem;
+    font-size: 2rem;
+    line-height: 2rem;
     box-sizing: border-box;
     z-index: 2;
 }
