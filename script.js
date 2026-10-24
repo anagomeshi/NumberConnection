@@ -50,7 +50,7 @@ function createBoard(width, height) {
     
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     polygon.setAttribute("points", "0 0, 4 2, 0 4");
-    polygon.setAttribute("fill", "#5982d9");
+    polygon.setAttribute("fill", "#5a7bc0");
     marker.appendChild(polygon);
     defs.appendChild(marker);
     svg.appendChild(defs);
@@ -273,9 +273,7 @@ function generateLatinSquare(n) {
     return grid;
 }
 
-// --------------------------------------------------
 // プレイヤー操作・表示更新
-// --------------------------------------------------
 function onCellClicked(cell) {
     if (selectedCell === null) {
         if (cell.isFixed) return;
@@ -328,7 +326,7 @@ function tryToggleArrow(from, to) {
     }
 
     updateAllCellDisplay();
-    checkLatinSquareClear();
+    checkClear();
 }
 
 function addArrow(from, to) {
@@ -417,11 +415,24 @@ function updateAllCellDisplay() {
     }
 }
 
-// クリアチェック（ラテン方格成立判定）
-function checkLatinSquareClear() {
+// クリアチェック（ラテン方格成立 and 全ての可変マスに接続が存在）
+function checkClear() {
     const N = boardWidth;
 
-    // 行チェック
+    // すべての可変マスに最低1本のプレイヤー接続があるか確認
+    for (let y = 0; y < boardHeight; y++) {
+        for (let x = 0; x < boardWidth; x++) {
+            const cell = board[y][x];
+
+            // 可変マスなのに矢印（出・入）が1本もない場合はクリア不可
+            if (!cell.isFixed && cell.outgoing.size === 0 && cell.incoming.size === 0) {
+                showClearPopup(false);
+                return false;
+            }
+        }
+    }
+
+    // 行のラテン方格チェック（1〜Nの重複なし）
     for (let y = 0; y < N; y++) {
         const rowValues = new Set();
         for (let x = 0; x < N; x++) {
@@ -434,7 +445,7 @@ function checkLatinSquareClear() {
         }
     }
 
-    // 列チェック
+    // 列のラテン方格チェック（1〜Nの重複なし）
     for (let x = 0; x < N; x++) {
         const colValues = new Set();
         for (let y = 0; y < N; y++) {
@@ -447,6 +458,7 @@ function checkLatinSquareClear() {
         }
     }
 
+    // すべての条件を満たした場合のみクリア
     showClearPopup(true);
     return true;
 }
