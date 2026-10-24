@@ -1,5 +1,5 @@
-const boardWidth = 9;
-const boardHeight = 9;
+const boardWidth = 5;
+const boardHeight = 5;
 
 let board = [];
 let selectedCell = null;
