@@ -6,7 +6,7 @@ html,body {
     background-color: #fff;
     color: #344861;
     font-family: -apple-system,BlinkMacSystemFont,avenir next,avenir,helvetica neue,helvetica,ubuntu,roboto,noto,segoe ui,arial,sans-serif;
-    overflow: hidden;
+    overflow-y: auto;
     user-select: none;
     -webkit-user-select: none;
     box-sizing: border-box;
@@ -23,45 +23,55 @@ html,body {
 
 .app-content{
     position: relative;
-    display: flex;
-    flex-direction: column;
+    display: grid;
     width: 100%;
-    height: 100%;
+    max-width: max-content;
+    margin: 0 auto; 
     box-sizing: border-box;
 }
 
 .header{
-    flex: 0 0 auto;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 1rem;
     width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+    line-height: 1rem;
     box-sizing: border-box;
 }
 
-.header div{
+.header button{
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    padding: .5rem;
+    margin: 0;
+    background-color: transparent;
+    border: none;
+    border-radius: .5rem;
+    color: #6e7c8c;
+    font-size: 1rem;
+    line-height: 1rem;
+    box-sizing: border-box;
+    cursor: pointer;
 }
 
-.header span{
-    font-size: 1.8rem;
-    line-height: 1.8rem;
+.header button:hover{
+    background-color: #f1f4f8;
 }
 
-.header img{
-    width: 1.8rem;
-    height: 1.8rem;
+.header button.selected{
+    color: #325aaf;
 }
 
 .board{
-    flex: 1 0 0;
     display: flex;
     width: 100%;
-    min-height: 0;
-    padding: 1rem;
-    overflow: auto;
+    max-width: 100vw;
+    padding: 0 1rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
     box-sizing: border-box;
 }
 
@@ -69,9 +79,7 @@ html,body {
     display: flex;
     flex-direction: column;
     position: relative;
-    width: max-content;
-    height: max-content;
-    margin: auto;
+    margin: 0 auto; 
     border: 2px solid #344861;
     box-sizing: border-box;
 }
@@ -101,6 +109,7 @@ html,body {
     line-height: 2rem;
     box-sizing: border-box;
     z-index: 2;
+    cursor: pointer;
 }
 
 .board-button.selected{
