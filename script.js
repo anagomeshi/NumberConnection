@@ -1,5 +1,5 @@
-const boardWidth = 5;
-const boardHeight = 5;
+let boardWidth = 5;
+let boardHeight = 5;
 
 let board = [];
 let selectedCell = null;
@@ -525,4 +525,40 @@ function redrawLines() {
 
 window.addEventListener("resize", redrawLines);
 
+// 難易度（data-level）ごとの盤面サイズ定義
+const LEVEL_SIZES = {
+    easy: 3,    // 3x3
+    normal: 5,  // 5x5
+    hard: 9     // 9x9
+};
+
+// 難易度ボタンのイベント設定関数
+function setupLevelButtons() {
+    const levelButtons = document.querySelectorAll(".level-button");
+
+    levelButtons.forEach(button => {
+        button.addEventListener("click", (e) => {
+            const targetButton = e.currentTarget;
+            const level = targetButton.dataset.level; // data-level の値（easy, normal, hard）
+
+            // 未定義の level の場合は処理しない
+            if (!LEVEL_SIZES[level]) return;
+
+            // selected クラスの更新（既存の selected を削除し、押されたボタンに付与）
+            levelButtons.forEach(btn => btn.classList.remove("selected"));
+            targetButton.classList.add("selected");
+
+            // グローバル変数のサイズを更新
+            const newSize = LEVEL_SIZES[level];
+            boardWidth = newSize;
+            boardHeight = newSize;
+
+            // 新しいサイズの盤面を生成
+            createBoard(boardWidth, boardHeight);
+        });
+    });
+}
+
+// イベントリスナーのセットアップ＆初回盤面生成
+setupLevelButtons();
 createBoard(boardWidth, boardHeight);
