@@ -42,14 +42,15 @@ function createBoard(width, height) {
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
     marker.setAttribute("id", "arrowhead");
-    marker.setAttribute("markerWidth", "4");
-    marker.setAttribute("markerHeight", "4");
-    marker.setAttribute("refX", "1");
-    marker.setAttribute("refY", "2");
+    marker.setAttribute("markerUnits", "userSpaceOnUse");
+    marker.setAttribute("markerWidth", "30");
+    marker.setAttribute("markerHeight", "30");
+    marker.setAttribute("refX", "0");
+    marker.setAttribute("refY", "15");
     marker.setAttribute("orient", "auto");
     
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    polygon.setAttribute("points", "0 0, 4 2, 0 4");
+    polygon.setAttribute("points", "0 0, 30 15, 0 30");
     polygon.setAttribute("fill", "#5a7bc0");
     marker.appendChild(polygon);
     defs.appendChild(marker);
@@ -86,6 +87,8 @@ function createBoard(width, height) {
     
     // 初回の全マス数値表示更新
     updateAllCellDisplay();
+
+    document.querySelector(".board").scrollLeft = 0;
 }
 
 // 上下左右のみ隣接判定
@@ -345,33 +348,53 @@ function getArrowKey(from, to) {
     return `${from.x},${from.y}->${to.x},${to.y}`;
 }
 
-// 2点間の中心座標から「縁」の座標を計算する関数
-function getEdgePoint(fromPos, toPos, cellRadius) {
+function getButtonCenter(button) {
+    const buttonRect = button.getBoundingClientRect();
+    const boardRect = boardElement.getBoundingClientRect();
+
+    return {
+        // boardElement に対するボタンの完全な中心座標（px）
+        x: buttonRect.left - boardRect.left + buttonRect.width / 2,
+        y: buttonRect.top - boardRect.top + buttonRect.height / 2
+    };
+}
+
+// 2点間の中心座標から「マスの縁」の座標を計算する関数
+function getEdgePoint(fromPos, toPos, radius) {
     const dx = toPos.x - fromPos.x;
     const dy = toPos.y - fromPos.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance === 0) return toPos;
 
-    // マスの半径分だけ手前（縁）の位置を計算
+    // 半径（マス中心から枠線まで）の分だけ手前で止める
     return {
-        x: toPos.x - (dx / distance) * cellRadius,
-        y: toPos.y - (dy / distance) * cellRadius
+        x: toPos.x - (dx / distance) * radius,
+        y: toPos.y - (dy / distance) * radius
     };
 }
 
 function drawArrowLine(from, to) {
     const svg = boardElement.querySelector(".connection-layer");
-    const posA = getButtonCenter(getButton(from));
-    const posB = getButtonCenter(getButton(to));
+    const buttonA = getButton(from);
+    const buttonB = getButton(to);
 
-    // ボタンの実際の半径（5rem = 約80px の場合は約 40px）を取得
-    const buttonElement = getButton(from);
-    const radius = buttonElement.offsetWidth / 2 + 24; // 24に設定するとなぜか三角形は縁にぴったりになる
+    const posA = getButtonCenter(buttonA);
+    const posB = getButtonCenter(buttonB);
 
-    // 終点を中心から「マスの縁」の位置へと補正
-    const startEdge = getEdgePoint(posB, posA, 0); // Aの中心から出発
-    const endEdge = getEdgePoint(posA, posB, radius);   // Bの縁で停止
+    // ボタンの実際の半径（px）
+    const radiusA = buttonA.offsetWidth / 2;
+    const radiusB = buttonB.offsetWidth / 2;
+
+    // 三角形の底辺から先端までの長さ (30px)
+    const arrowLength = 30;
+
+    // 始点：Aのボタンの縁
+    const startEdge = getEdgePoint(posB, posA, radiusA);
+
+    // 終点：Bのボタンの縁からさらに「12px手前」の位置
+    // （ここに線の終点が来ることで、そこから伸びる12pxの三角形がちょうどボタンの縁に届きます）
+    const endEdge = getEdgePoint(posA, posB, radiusB + arrowLength);
 
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
     line.setAttribute("x1", startEdge.x);
