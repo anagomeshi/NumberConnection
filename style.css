@@ -26,6 +26,7 @@ html,body {
     display: grid;
     width: 100%;
     max-width: max-content;
+    padding: 1rem;
     margin: 0 auto; 
     box-sizing: border-box;
 }
@@ -35,7 +36,7 @@ html,body {
     align-items: center;
     gap: 1rem;
     width: 100%;
-    padding: 1rem;
+    padding-bottom: 1rem;
     font-size: 1rem;
     line-height: 1rem;
     box-sizing: border-box;
@@ -67,9 +68,8 @@ html,body {
 
 .board{
     display: flex;
-    width: calc(100% - 2rem);
-    max-width: calc(100vw - 2rem);
-    margin: 0 1rem 1rem 1rem;
+    width: 100%;
+    max-width: 100vw;
     overflow-x: auto;
     box-sizing: border-box;
 }
