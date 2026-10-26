@@ -89,6 +89,8 @@ function createBoard(width, height) {
     updateAllCellDisplay();
 
     document.querySelector(".board").scrollLeft = 0;
+
+    showClearPopup(false);
 }
 
 // 上下左右のみ隣接判定
@@ -267,10 +269,33 @@ function generateLatinSquare(n) {
         }
     }
 
-    for (let i = 0; i < n; i++) {
+    // 行（上下）のシャッフル
+    for (let i = 0; i < n * 2; i++) {
         const r1 = randomInt(0, n - 1);
         const r2 = randomInt(0, n - 1);
         [grid[r1], grid[r2]] = [grid[r2], grid[r1]];
+    }
+
+    // 列（左右）のシャッフル
+    for (let i = 0; i < n * 2; i++) {
+        const c1 = randomInt(0, n - 1);
+        const c2 = randomInt(0, n - 1);
+        for (let y = 0; y < n; y++) {
+            const temp = grid[y][c1];
+            grid[y][c1] = grid[y][c2];
+            grid[y][c2] = temp;
+        }
+    }
+
+    // 数字そのもののシャッフル（1~N のラベルをシャッフル）
+    const digits = Array.from({ length: n }, (_, i) => i + 1);
+    shuffle(digits); // 1~nの配列をランダムにシャッフル
+
+    // 数字の置き換え (1 -> digits[0], 2 -> digits[1], ...)
+    for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+            grid[y][x] = digits[grid[y][x] - 1];
+        }
     }
 
     return grid;
@@ -487,14 +512,14 @@ function checkClear() {
 }
 
 function showClearPopup(isClear) {
-    const appMask = document.querySelector(".app-mask");
+    const boardMask = document.querySelector(".board-mask");
     const popupContainer = document.querySelector(".clear-popup-container");
 
     if (isClear) {
-        appMask?.classList.add("show");
+        boardMask?.classList.add("show");
         popupContainer?.classList.add("show");
     } else {
-        appMask?.classList.remove("show");
+        boardMask?.classList.remove("show");
         popupContainer?.classList.remove("show");
     }
 }
