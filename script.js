@@ -29,7 +29,107 @@ class Cell {
 
 const boardElement = document.querySelector(".board-content");
 
-function createBoard(width, height) {
+const STORAGE_KEY = "number-connection_save";
+
+// --------------------------------------------------
+// ローカルストレージ関連処理
+// --------------------------------------------------
+
+// 状態の保存
+function saveGameState() {
+    const cellsData = [];
+    const arrowsData = [];
+
+    for (let y = 0; y < boardHeight; y++) {
+        for (let x = 0; x < boardWidth; x++) {
+            const cell = board[y][x];
+            cellsData.push({
+                x: cell.x,
+                y: cell.y,
+                baseValue: cell.baseValue,
+                targetValue: cell.targetValue,
+                isFixed: cell.isFixed
+            });
+
+            // プレイヤーの矢印（outgoing）を保存
+            for (const target of cell.outgoing) {
+                arrowsData.push({
+                    fromX: cell.x,
+                    fromY: cell.y,
+                    toX: target.x,
+                    toY: target.y
+                });
+            }
+        }
+    }
+
+    const gameState = {
+        width: boardWidth,
+        height: boardHeight,
+        cells: cellsData,
+        arrows: arrowsData
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+}
+
+// 状態の削除（クリア時など）
+function clearGameState() {
+    localStorage.removeItem(STORAGE_KEY);
+}
+
+// 状態の読み込み・復元
+function loadGameState() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return false;
+
+    try {
+        const data = JSON.parse(saved);
+        boardWidth = data.width;
+        boardHeight = data.height;
+
+        // 盤面の基本枠組みを生成（Problem生成はスキップ）
+        buildBoardDOM(boardWidth, boardHeight);
+
+        // マス情報の復元
+        data.cells.forEach(c => {
+            const cell = board[c.y][c.x];
+            cell.baseValue = c.baseValue;
+            cell.targetValue = c.targetValue;
+            cell.isFixed = c.isFixed;
+        });
+
+        // 矢印の復元
+        data.arrows.forEach(a => {
+            const from = board[a.fromY][a.fromX];
+            const to = board[a.toY][a.toX];
+            addArrow(from, to);
+        });
+
+        updateAllCellDisplay();
+        
+        // 難易度ボタンの selected クラスを同期
+        updateLevelButtonUI(boardWidth);
+
+        return true;
+    } catch (e) {
+        console.error("セーブデータの読み込みに失敗しました:", e);
+        clearGameState();
+        return false;
+    }
+}
+
+// プレイヤーの矢印が 1 本以上存在するか判定
+function hasPlayerConnections() {
+    return arrowMap.size > 0;
+}
+
+// --------------------------------------------------
+// 盤面生成・UI初期化の分離
+// --------------------------------------------------
+
+// 盤面DOMとマスの初期構造のみを作る
+function buildBoardDOM(width, height) {
     board = [];
     selectedCell = null;
     arrowMap.clear();
@@ -52,10 +152,10 @@ function createBoard(width, height) {
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     polygon.setAttribute("points", "0 0, 30 15, 0 30");
     polygon.setAttribute("fill", "#5a7bc0");
+    
     marker.appendChild(polygon);
     defs.appendChild(marker);
     svg.appendChild(defs);
-
     boardElement.appendChild(svg);
 
     // ボード構築
@@ -67,29 +167,24 @@ function createBoard(width, height) {
         for (let x = 0; x < width; x++) {
             const cell = new Cell(x, y);
             const button = document.createElement("button");
-
             board[y][x] = cell;
 
             button.classList.add("board-button");
             button.cell = cell;
             button.addEventListener("click", () => onCellClicked(cell));
-
             row.appendChild(button);
         }
-
         boardElement.appendChild(row);
     }
 
     setupNeighbors(width, height);
-    
-    // パズル生成（正解から逆算して固定マスと初期配置の数字を設定）
+}
+
+// 完全な新規ゲームの作成（DOM作成 + パズル生成 + 保存）
+function createBoard(width, height) {
+    buildBoardDOM(width, height);
     generatePuzzle(width, height);
-    
-    // 初回の全マス数値表示更新
     updateAllCellDisplay();
-
-    document.querySelector(".board").scrollLeft = 0;
-
     showClearPopup(false);
 }
 
@@ -354,6 +449,13 @@ function tryToggleArrow(from, to) {
     }
 
     updateAllCellDisplay();
+
+    if(hasPlayerConnections()){
+        saveGameState();
+    }else{
+        clearGameState();
+    }
+
     checkClear();
 }
 
@@ -461,6 +563,8 @@ function updateAllCellDisplay() {
             }
         }
     }
+
+    console.log(arrowMap);
 }
 
 // クリアチェック（ラテン方格成立 and 全ての可変マスに接続が存在）
@@ -507,6 +611,8 @@ function checkClear() {
     }
 
     // すべての条件を満たした場合のみクリア
+    clearGameState();
+    arrowMap.clear();
     showClearPopup(true);
     return true;
 }
@@ -571,6 +677,42 @@ function redrawLines() {
     }
 }
 
+function showConfirmDialog() {
+    return new Promise((resolve) => {
+        const boardMask = document.querySelector(".board-mask");
+        const popup = document.querySelector(".confirm-popup-container");
+        const yesBtn = document.querySelector(".confirm-yes-button");
+        const noBtn = document.querySelector(".confirm-no-button");
+
+        // ポップアップを表示
+        boardMask.classList.add("show");
+        popup.classList.add("show");
+
+        // 「はい」が押された時
+        const handleYes = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        // 「いいえ」が押された時
+        const handleNo = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        // 後処理（イベント解除 & 閉じる）
+        const cleanup = () => {
+            boardMask.classList.remove("show");
+            popup.classList.remove("show");
+            yesBtn.removeEventListener("click", handleYes);
+            noBtn.removeEventListener("click", handleNo);
+        };
+
+        yesBtn.addEventListener("click", handleYes);
+        noBtn.addEventListener("click", handleNo);
+    });
+}
+
 window.addEventListener("resize", redrawLines);
 
 // 難易度（data-level）ごとの盤面サイズ定義
@@ -580,33 +722,57 @@ const LEVEL_SIZES = {
     hard: 9     // 9x9
 };
 
-// 難易度ボタンのイベント設定関数
+// 難易度ボタンの設定（確認ポップアップ付き）
 function setupLevelButtons() {
     const levelButtons = document.querySelectorAll(".level-button");
 
     levelButtons.forEach(button => {
-        button.addEventListener("click", (e) => {
+        button.addEventListener("click", async (e) => {
             const targetButton = e.currentTarget;
-            const level = targetButton.dataset.level; // data-level の値（easy, normal, hard）
+            const level = targetButton.dataset.level;
 
-            // 未定義の level の場合は処理しない
             if (!LEVEL_SIZES[level]) return;
+            const newSize = LEVEL_SIZES[level];
 
-            // selected クラスの更新（既存の selected を削除し、押されたボタンに付与）
+            // プレイヤーの接続が1つ以上ある場合はカスタムダイアログで確認
+            if (hasPlayerConnections()) {
+                const confirmed = await showConfirmDialog();
+                if (!confirmed) {
+                    return; // 「いいえ」またはキャンセルされた場合は中断
+                }
+            }
+
+            // UI選択状態更新
             levelButtons.forEach(btn => btn.classList.remove("selected"));
             targetButton.classList.add("selected");
 
-            // グローバル変数のサイズを更新
-            const newSize = LEVEL_SIZES[level];
             boardWidth = newSize;
             boardHeight = newSize;
 
-            // 新しいサイズの盤面を生成
+            // 新規盤面を作成（既存のセーブデータは上書き保存される）
             createBoard(boardWidth, boardHeight);
         });
     });
 }
 
-// イベントリスナーのセットアップ＆初回盤面生成
+function updateLevelButtonUI(size) {
+    const levelButtons = document.querySelectorAll(".level-button");
+    levelButtons.forEach(btn => {
+        const level = btn.dataset.level;
+        if (LEVEL_SIZES[level] === size) {
+            btn.classList.add("selected");
+        } else {
+            btn.classList.remove("selected");
+        }
+    });
+}
+
+// --------------------------------------------------
+// 初期起動処理
+// --------------------------------------------------
 setupLevelButtons();
-createBoard(boardWidth, boardHeight);
+
+// 保存されたゲームがあれば復元、なければ新規作成
+if (!loadGameState()) {
+    createBoard(boardWidth, boardHeight);
+}
