@@ -702,6 +702,8 @@ function setupLevelButtons() {
             boardWidth = newSize;
             boardHeight = newSize;
 
+            clearGameState();
+
             // 新規盤面を作成（既存のセーブデータは上書き保存される）
             createBoard(boardWidth, boardHeight);
         });
