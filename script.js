@@ -563,8 +563,6 @@ function updateAllCellDisplay() {
             }
         }
     }
-
-    console.log(arrowMap);
 }
 
 // クリアチェック（ラテン方格成立 and 全ての可変マスに接続が存在）
@@ -612,7 +610,6 @@ function checkClear() {
 
     // すべての条件を満たした場合のみクリア
     clearGameState();
-    arrowMap.clear();
     showClearPopup(true);
     return true;
 }
@@ -677,42 +674,6 @@ function redrawLines() {
     }
 }
 
-function showConfirmDialog() {
-    return new Promise((resolve) => {
-        const boardMask = document.querySelector(".board-mask");
-        const popup = document.querySelector(".confirm-popup-container");
-        const yesBtn = document.querySelector(".confirm-yes-button");
-        const noBtn = document.querySelector(".confirm-no-button");
-
-        // ポップアップを表示
-        boardMask.classList.add("show");
-        popup.classList.add("show");
-
-        // 「はい」が押された時
-        const handleYes = () => {
-            cleanup();
-            resolve(true);
-        };
-
-        // 「いいえ」が押された時
-        const handleNo = () => {
-            cleanup();
-            resolve(false);
-        };
-
-        // 後処理（イベント解除 & 閉じる）
-        const cleanup = () => {
-            boardMask.classList.remove("show");
-            popup.classList.remove("show");
-            yesBtn.removeEventListener("click", handleYes);
-            noBtn.removeEventListener("click", handleNo);
-        };
-
-        yesBtn.addEventListener("click", handleYes);
-        noBtn.addEventListener("click", handleNo);
-    });
-}
-
 window.addEventListener("resize", redrawLines);
 
 // 難易度（data-level）ごとの盤面サイズ定義
@@ -727,20 +688,12 @@ function setupLevelButtons() {
     const levelButtons = document.querySelectorAll(".level-button");
 
     levelButtons.forEach(button => {
-        button.addEventListener("click", async (e) => {
+        button.addEventListener("click", (e) => {
             const targetButton = e.currentTarget;
             const level = targetButton.dataset.level;
 
             if (!LEVEL_SIZES[level]) return;
             const newSize = LEVEL_SIZES[level];
-
-            // プレイヤーの接続が1つ以上ある場合はカスタムダイアログで確認
-            if (hasPlayerConnections()) {
-                const confirmed = await showConfirmDialog();
-                if (!confirmed) {
-                    return; // 「いいえ」またはキャンセルされた場合は中断
-                }
-            }
 
             // UI選択状態更新
             levelButtons.forEach(btn => btn.classList.remove("selected"));
